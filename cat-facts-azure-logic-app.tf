@@ -4,7 +4,7 @@ variable your_name = "Macaulay Culkin"
 variable boss_name = "Joe Pesci"
 
 resource "azurerm_resource_group" "cat-facts-app" {
-  name     = "cat-facts-${var.environment_name}"
+  name     = "cat-facts-app"
   location = "canadacentral"
 }
 
