@@ -1,21 +1,12 @@
-variable organization_name = "Your organization's name"
-variable distribution_list_email_address = "catfacts@domain.com"
-variable your_name = "Macaulay Culkin"
-variable boss_name = "Joe Pesci"
-variable city = "New York"
-
 resource "azurerm_resource_group" "cat-facts-app" {
   name     = "cat-facts-app"
-  location = "canadacentral"
+  location = "${var.location}"
 }
 
 resource "azurerm_logic_app_workflow" "cat-facts-workflow" {
   name                = "Cat-Facts-App"
   location            = "${azurerm_resource_group.cat-facts-app.location}"
   resource_group_name = "${azurerm_resource_group.cat-facts-app.name}"
-  parameters          = {
-    "$connections" = ""
-  }
 }
 
 resource "azurerm_logic_app_trigger_recurrence" "cat-facts-trigger" {
@@ -35,6 +26,8 @@ resource "azurerm_logic_app_action_http" "cat-facts-api-request" {
 resource "azurerm_logic_app_action_custom" "cat-facts-initialize-variable" {
   name         = "Initialize_variable"
   logic_app_id = "${azurerm_logic_app_workflow.cat-facts-workflow.id}"
+
+  depends_on = ["azurerm_logic_app_action_custom.cat-facts-parse-json"]
 
   body = <<BODY
 {
@@ -61,6 +54,7 @@ BODY
 resource "azurerm_logic_app_action_custom" "cat-facts-parse-json" {
   name         = "Parse_JSON"
   logic_app_id = "${azurerm_logic_app_workflow.cat-facts-workflow.id}"
+  depends_on   = ["azurerm_logic_app_action_http.cat-facts-api-request"]
 
   body = <<BODY
 {
@@ -89,9 +83,20 @@ resource "azurerm_logic_app_action_custom" "cat-facts-parse-json" {
 BODY
 }
 
+resource "null_resource" "delay" {
+  depends_on = ["azurerm_logic_app_action_custom.cat-facts-initialize-variable"]
+
+  provisioner "local-exec" {
+    command = <<EOC
+    bash -c 'sleep ${var.sleep_time}'
+    EOC
+  }
+}
+
 resource "azurerm_logic_app_action_custom" "cat-facts-send-email" {
   name         = "Send_an_email_(V2)"
   logic_app_id = "${azurerm_logic_app_workflow.cat-facts-workflow.id}"
+  depends_on   = ["null_resource.delay"]
 
   body = <<BODY
 {
